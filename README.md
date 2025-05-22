@@ -50,7 +50,7 @@ This is a Node.js + Express backend to handle profile data for a personal portfo
 ## 🚀 Getting Started
 
 1. Clone the repository:  
-   `git clone <repository_url>`  
+   `git clone https://github.com/mohdumar-mern/umarmernportfoilo.git`  
 2. Install dependencies:  
    `npm install`  
 3. Create a `.env` file based on `.env.example` and configure:  
