@@ -43,13 +43,29 @@ export const addProject = expressAsyncHandler(async (req, res) => {
 // @access Public
 export const getProjects = expressAsyncHandler(async (req, res) => {
   try {
-    const projects = await Project.find();
+    const {page = 1, limit = 3} = req.query
+    // const projects = await Project.find();
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit)
+    }
+    const projects = await Project.paginate({}, options)
 
     if (!projects || projects.length === 0) {
       return res.status(404).json({ message: "No projects found" });
     }
 
-    res.status(200).json({ data: projects });
+    res.status(200).json({ data: projects.docs,
+      totalDocs: projects.totalDocs,
+      limit: projects.limit,
+      totalPages: projects.totalPages,
+      currentPage: projects.page,
+      pagingCounter: projects.pagingCounter,
+      hasPrevPage: projects.hasPrevPage,
+      hasNextPage: projects.hasNextPage,
+      prevPage: projects.prevPage,
+      nextPage: projects.nextPage
+     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import mongoosePaginate from "mongoose-paginate-v2"
 
 const projectSchema = new mongoose.Schema({
   title: {
@@ -41,5 +42,6 @@ const projectSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+projectSchema.plugin(mongoosePaginate)
 const Project = mongoose.model('Project', projectSchema);
 export default Project;

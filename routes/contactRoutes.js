@@ -10,9 +10,9 @@ import {
 } from "../controllers/contactController.js";
 import { contactFormValidator } from "../validator/contactValidator.js";
 
-router.post("/",contactFormValidator, submitContactForm)
+router.post("/add",contactFormValidator, submitContactForm)
 router.get("/", getContacts)
-router.get("/:id", getContactById)
+router.get("/:id/view", getContactById)
 router.delete("/:id", deleteContact)
 
 export default router

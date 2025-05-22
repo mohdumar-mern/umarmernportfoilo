@@ -14,7 +14,9 @@ export const submitContactForm = expressAsyncHandler(async (req, res) => {
 
   const contact = await Contact.create(req.body);
   if (!contact) {
-    return res.status(500).json({ message: "Failed to save contact in database" });
+    return res
+      .status(500)
+      .json({ message: "Failed to save contact in database" });
   }
 
   // Email content
@@ -35,46 +37,31 @@ ${message}
   res.status(201).json({ message: "Message sent and saved successfully" });
 });
 
-
 // Get Contacts
 export const getContacts = async (req, res) => {
-  const page = parseInt(req.query.page) || 1; // default page 1
-  const limit = parseInt(req.query.limit) || 6; // default limit 6
+  const { page = 1, limit = 3 } = req.query;
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
 
-  if (page < 1 || limit < 1) {
-    return res
-      .status(400)
-      .json({ message: "Page and limit must be greater than 0" });
+  const contacts = await Contact.paginate({}, options);
+  
+  if (!contacts || contacts.length === 0) {
+    return res.status(404).json({ message: "Contacts not found" });
   }
-
-  const skip = (page - 1) * limit;
-
-  try {
-    const total = await Contact.countDocuments();
-    const contacts = await Contact.find({})
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    res.status(200).json({
-      message: "Contact messages fetched successfully",
-      contacts,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-        hasNextPage: skip + limit < total,
-        hasPrevPage: page > 1,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching contact messages:", error.message);
-    res.status(500).json({
-      message: "Failed to fetch contact messages",
-      error: error.message,
-    });
-  }
+  // Send response
+  res.status(200).json({ data: contacts.docs,
+    totalDocs: contacts.totalDocs,
+    limit: contacts.limit,
+    totalPages: contacts.totalPages,
+    currentPage: contacts.page,
+    pagingCounter: contacts.pagingCounter,
+    hasPrevPage: contacts.hasPrevPage,
+    hasNextPage: contacts.hasNextPage,
+    prevPage: contacts.prevPage,
+    nextPage: contacts.nextPage
+   });
 };
 
 // Get contact by ID
@@ -96,24 +83,21 @@ export const getContactById = async (req, res) => {
   }
 };
 
-
-// Delete Contact 
+// Delete Contact
 export const deleteContact = async (req, res) => {
-  
-    try {
-      const contact = await Contact.findByIdAndDelete(req.params.id);
-  
-      if (!contact) {
-        return res.status(404).json({ message: 'Contact not found' });
-      }
-  
-      res.status(200).json({ message: 'Contact deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting contact:', error.message);
-      res.status(500).json({
-        message: 'Failed to delete contact',
-        error: error.message,
-      });
+  try {
+    const contact = await Contact.findByIdAndDelete(req.params.id);
+
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
     }
-  };
-  
+
+    res.status(200).json({ message: "Contact deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting contact:", error.message);
+    res.status(500).json({
+      message: "Failed to delete contact",
+      error: error.message,
+    });
+  }
+};

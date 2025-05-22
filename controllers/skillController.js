@@ -39,11 +39,27 @@ export const addSkill = expressAsyncHandler(async (req, res) => {
 // @route  GET /api/skills
 // @access Public
 export const getSkills = expressAsyncHandler(async (req, res) => {
-  const skills = await Skill.find();
+  const {page = 1, limit = 3} = req.query
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit)
+  }
+
+  const skills = await Skill.paginate({},options);
   if (!skills || skills.length === 0) {
     return res.status(404).json({ message: "Skills not found" });
   }
-  res.status(200).json({ data: skills });
+  res.status(200).json({ data: skills.docs,
+    totalDocs: skills.totalDocs,
+    limit: skills.limit,
+    totalPages: skills.totalPages,
+    currentPage: skills.page,
+    pagingCounter: skills.pagingCounter,
+    hasPrevPage: skills.hasPrevPage,
+    hasNextPage: skills.hasNextPage,
+    prevPage: skills.prevPage,
+    nextPage: skills.nextPage
+   });
 });
 
 // @desc   Get Single Skill
