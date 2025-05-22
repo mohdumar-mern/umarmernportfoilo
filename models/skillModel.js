@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import mongoosePaginate from "mongoose-paginate-v2"
 
 const skillSchema = new mongoose.Schema(
   {
@@ -24,7 +23,6 @@ const skillSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-skillSchema.plugin(mongoosePaginate)
 
 const Skill = mongoose.model("Skill", skillSchema);
 export default Skill

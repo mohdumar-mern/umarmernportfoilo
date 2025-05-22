@@ -38,18 +38,18 @@ router.put(
 
 // @route   GET /api/profile
 // @desc    Get all profiles (Protected)
-router.get("/", protect, getProfile);
+router.get("/", getProfile);
 
 // @route   GET /api/profile/:id/avatar
 // @desc    Get avatar by profile ID (Protected)
-router.get("/:id/avatar", protect, getAvatar);
+router.get("/avatar", getAvatar);
 
 // @route   GET /api/profile/:id/resume
 // @desc    Get resume by profile ID (Protected)
-router.get("/:id/resume", protect, getResume);
+router.get("/resume", getResume);
 
 // @route   GET /api/profile/:id/social-links
 // @desc    Get social links by profile ID (Protected)
-router.get("/:id/social-links", protect, getSocialLinks);
+router.get("/social-links", getSocialLinks);
 
 export default router;

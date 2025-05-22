@@ -32,7 +32,6 @@ export const addProfile = expressAsyncHandler(async (req, res) => {
 
   try {
     const newProfile = await Profile.create({
-      user: req.user._id, // associate logged-in user
       name,
       avatar,
       resume,
@@ -44,24 +43,28 @@ export const addProfile = expressAsyncHandler(async (req, res) => {
       data: newProfile,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to create profile", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to create profile", error: error.message });
   }
 });
 
 /**
- * @desc    Get logged-in user's profile
+ * @desc    Get  profile
  * @route   GET /api/profile
- * @access  Private
+ * @access  Public
  */
 export const getProfile = expressAsyncHandler(async (req, res) => {
   try {
-    const profile = await Profile.findOne({ user: req.user._id });
+    const profile = await Profile.findOne();
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
     return res.status(200).json({ data: profile });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch profile", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch profile", error: error.message });
   }
 });
 
@@ -73,17 +76,12 @@ export const getProfile = expressAsyncHandler(async (req, res) => {
 export const updateProfile = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, github, linkedin, twitter, instagram, youtube } = req.body;
-  console.log(req.body)
+  console.log(req.body);
 
   const profile = await Profile.findById(id);
 
   if (!profile) {
     return res.status(404).json({ message: "Profile not found" });
-  }
-
-  // Optional: check ownership
-  if (profile.user.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to update this profile" });
   }
 
   const avatarFile = req.files?.avatar?.[0];
@@ -126,43 +124,45 @@ export const updateProfile = expressAsyncHandler(async (req, res) => {
       data: updated,
     });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update profile", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to update profile", error: error.message });
   }
 });
 
 /**
- * @desc    Get Avatar for logged-in user
+ * @desc    Get Avatar
  * @route   GET /api/profile/avatar
- * @access  Private
+ * @access  Public
  */
 export const getAvatar = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne({ user: req.user._id });
+  const profile = await Profile.findOne();
   if (!profile) {
     return res.status(404).json({ message: "Avatar not found" });
   }
-  return res.status(200).json({ avatar: profile.avatar });
+  return res.status(200).json({ avatar: profile.avatar.url });
 });
 
 /**
- * @desc    Get Resume for logged-in user
+ * @desc    Get Resume
  * @route   GET /api/profile/resume
- * @access  Private
+ * @access  Public
  */
 export const getResume = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne({ user: req.user._id });
+  const profile = await Profile.findOne();
   if (!profile) {
     return res.status(404).json({ message: "Resume not found" });
   }
-  return res.status(200).json({ resume: profile.resume });
+  return res.status(200).json({ resume: profile.resume.url });
 });
 
 /**
- * @desc    Get Social Links for logged-in user
+ * @desc    Get Social Links
  * @route   GET /api/profile/social-links
- * @access  Private
+ * @access  Public
  */
 export const getSocialLinks = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne({ user: req.user._id });
+  const profile = await Profile.findOne();
   if (!profile) {
     return res.status(404).json({ message: "Social Links not found" });
   }

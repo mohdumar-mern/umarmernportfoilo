@@ -44,26 +44,14 @@ export const addService = expressAsyncHandler(async (req, res) => {
 // @route  GET /api/services
 // @access Public
 export const getServices = expressAsyncHandler(async (req, res) => {
-  const {page = 1, limit = 3} = req.query
-  const options = {
-    page: parseInt(page),
-    limit: parseInt(limit)
-  }
-  const services = await Service.paginate({}, options);
+ 
+  const services = await Service.find();
 
   if (!services || services.length === 0) {
     return res.status(404).json({ message: "Services not found" });
   }
-  res.status(200).json({ data: services.docs,
-    totalDocs: services.totalDocs,
-    limit: services.limit,
-    totalPages: services.totalPages,
-    currentPage: services.page,
-    pagingCounter: services.pagingCounter,
-    hasPrevPage: services.hasPrevPage,
-    hasNextPage: services.hasNextPage,
-    prevPage: services.prevPage,
-    nextPage: services.nextPage
+  res.status(200).json({ data: services,
+   
    });
 });
 
