@@ -63,6 +63,7 @@ export const getSingleSkill = expressAsyncHandler(async (req, res) => {
 // @route  PUT /api/skills/:id/edit
 // @access Public
 export const updateSkill = expressAsyncHandler(async (req, res) => {
+  console.log(req.body)
   const { title, level, category } = req.body;
 
   const skill = await Skill.findById(req.params.id);

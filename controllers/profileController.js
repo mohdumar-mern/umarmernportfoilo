@@ -1,5 +1,7 @@
 import expressAsyncHandler from "express-async-handler";
 import Profile from "../models/profileModel.js";
+import path from "path";
+import axios from "axios";
 
 /**
  * @desc    Create a new profile
@@ -30,42 +32,30 @@ export const addProfile = expressAsyncHandler(async (req, res) => {
       }
     : null;
 
-  try {
-    const newProfile = await Profile.create({
-      name,
-      avatar,
-      resume,
-      socialLinks: { github, linkedin, twitter, instagram, youtube },
-    });
+  const newProfile = await Profile.create({
+    name,
+    avatar,
+    resume,
+    socialLinks: { github, linkedin, twitter, instagram, youtube },
+  });
 
-    res.status(201).json({
-      message: "Profile created successfully",
-      data: newProfile,
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create profile", error: error.message });
-  }
+  res.status(201).json({
+    message: "Profile created successfully",
+    data: newProfile,
+  });
 });
 
 /**
- * @desc    Get  profile
+ * @desc    Get profile
  * @route   GET /api/profile
  * @access  Public
  */
 export const getProfile = expressAsyncHandler(async (req, res) => {
-  try {
-    const profile = await Profile.findOne();
-    if (!profile) {
-      return res.status(404).json({ message: "Profile not found" });
-    }
-    return res.status(200).json({ data: profile });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch profile", error: error.message });
+  const profile = await Profile.findOne();
+  if (!profile) {
+    return res.status(404).json({ message: "Profile not found" });
   }
+  res.status(200).json({ data: profile });
 });
 
 /**
@@ -76,10 +66,8 @@ export const getProfile = expressAsyncHandler(async (req, res) => {
 export const updateProfile = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, github, linkedin, twitter, instagram, youtube } = req.body;
-  console.log(req.body);
 
   const profile = await Profile.findById(id);
-
   if (!profile) {
     return res.status(404).json({ message: "Profile not found" });
   }
@@ -87,47 +75,41 @@ export const updateProfile = expressAsyncHandler(async (req, res) => {
   const avatarFile = req.files?.avatar?.[0];
   const resumeFile = req.files?.resume?.[0];
 
-  const avatar = avatarFile
+  const updatedAvatar = avatarFile
     ? {
         url: avatarFile.path || avatarFile.location || avatarFile.url,
         public_id: avatarFile.filename || avatarFile.originalname,
       }
     : profile.avatar;
 
-  const resume = resumeFile
+  const updatedResume = resumeFile
     ? {
         url: resumeFile.path || resumeFile.location || resumeFile.url,
         public_id: resumeFile.filename || resumeFile.originalname,
       }
     : profile.resume;
 
-  try {
-    const updated = await Profile.findByIdAndUpdate(
-      id,
-      {
-        name: name || profile.name,
-        avatar,
-        resume,
-        socialLinks: {
-          github: github ?? profile.socialLinks.github,
-          linkedin: linkedin ?? profile.socialLinks.linkedin,
-          twitter: twitter ?? profile.socialLinks.twitter,
-          instagram: instagram ?? profile.socialLinks.instagram,
-          youtube: youtube ?? profile.socialLinks.youtube,
-        },
+  const updatedProfile = await Profile.findByIdAndUpdate(
+    id,
+    {
+      name: name || profile.name,
+      avatar: updatedAvatar,
+      resume: updatedResume,
+      socialLinks: {
+        github: github ?? profile.socialLinks.github,
+        linkedin: linkedin ?? profile.socialLinks.linkedin,
+        twitter: twitter ?? profile.socialLinks.twitter,
+        instagram: instagram ?? profile.socialLinks.instagram,
+        youtube: youtube ?? profile.socialLinks.youtube,
       },
-      { new: true, runValidators: true }
-    );
+    },
+    { new: true, runValidators: true }
+  );
 
-    res.status(200).json({
-      message: "Profile updated successfully",
-      data: updated,
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to update profile", error: error.message });
-  }
+  res.status(200).json({
+    message: "Profile updated successfully",
+    data: updatedProfile,
+  });
 });
 
 /**
@@ -137,10 +119,10 @@ export const updateProfile = expressAsyncHandler(async (req, res) => {
  */
 export const getAvatar = expressAsyncHandler(async (req, res) => {
   const profile = await Profile.findOne();
-  if (!profile) {
+  if (!profile || !profile.avatar?.url) {
     return res.status(404).json({ message: "Avatar not found" });
   }
-  return res.status(200).json({ avatar: profile.avatar.url });
+  res.status(200).json({ avatar: profile.avatar.url });
 });
 
 /**
@@ -150,10 +132,26 @@ export const getAvatar = expressAsyncHandler(async (req, res) => {
  */
 export const getResume = expressAsyncHandler(async (req, res) => {
   const profile = await Profile.findOne();
-  if (!profile) {
+  if (!profile || !profile.resume?.url) {
     return res.status(404).json({ message: "Resume not found" });
   }
-  return res.status(200).json({ resume: profile.resume.url });
+
+  // res.status(200).json({resume: profile.resume?.url});
+  const fileUrl = profile.resume.url;
+
+  // Derive a clean filename (remove query params, fallback to default)
+  const fileName = path.basename(new URL(fileUrl).pathname) || "resume.pdf";
+
+  // Download the file as a stream
+  const fileResponse = await axios.get(fileUrl, { responseType: "stream" });
+
+   // Set headers for file download
+   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+   res.setHeader("Content-Type", "application/pdf");
+
+   // Stream file to client
+   fileResponse.data.pipe(res);
+  
 });
 
 /**
@@ -163,8 +161,8 @@ export const getResume = expressAsyncHandler(async (req, res) => {
  */
 export const getSocialLinks = expressAsyncHandler(async (req, res) => {
   const profile = await Profile.findOne();
-  if (!profile) {
+  if (!profile || !profile.socialLinks) {
     return res.status(404).json({ message: "Social Links not found" });
   }
-  return res.status(200).json({ socialLinks: profile.socialLinks });
+  res.status(200).json({ socialLinks: profile.socialLinks });
 });

@@ -64,4 +64,4 @@ This is a Node.js + Express backend to handle profile data for a personal portfo
 
 ## License
 
-MIT © [Your Name]
+MIT © [Mohammad Umar]
