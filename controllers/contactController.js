@@ -10,6 +10,7 @@ export const submitContactForm = expressAsyncHandler(async (req, res) => {
     return res.status(422).json({ errors: errors.array() });
   }
 
+  
   const { name, email, phone, message } = req.body;
 
   const contact = await Contact.create(req.body);

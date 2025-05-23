@@ -10,12 +10,13 @@ import {
   updateProject,
   deleteProject,
 } from "../controllers/projectController.js";
+import { protect } from "../middlewares/authMiddleware.js";
 
 router.get("/", getProjects);
 
-router.post("/add",upload.single("file"), addProject);
-router.get("/:id/view", getProjectById);
-router.put("/:id/edit",upload.single("file"), updateProject);
-router.delete("/:id", deleteProject);
+router.post("/add",upload.single("file"),protect, addProject);
+router.get("/:id/view",protect, getProjectById);
+router.put("/:id/edit",upload.single("file"),protect, updateProject);
+router.delete("/:id",protect, deleteProject);
 
 export default router;

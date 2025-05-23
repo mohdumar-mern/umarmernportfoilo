@@ -25,7 +25,6 @@ export const protect = expressAsyncHandler(async (req, res, next) => {
     }
 
     req.user = admin; // Attach Admin to request
-    console.log(req.user)
     next()
   } catch (error) {
     console.error("Token verification error:", error);
