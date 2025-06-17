@@ -9,5 +9,19 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+/**
+ * Delete a file from Cloudinary by its public_id
+ * @param {string} publicId - The public_id of the file in Cloudinary
+ * @returns {Promise<object>} Cloudinary response
+ */
+export const deleteFileFromCloudinary = async (publicId) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result;
+  } catch (error) {
+    console.error(`❌ Failed to delete ${publicId} from Cloudinary:`, error);
+    throw new Error('Cloudinary deletion failed');
+  }
+};
 
 export default cloudinary;

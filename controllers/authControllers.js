@@ -2,93 +2,76 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import expressAsyncHandler from "express-async-handler";
 import { validationResult } from "express-validator";
-
 import Auth from "../models/authModel.js";
 
-// Register Admin
+// ✅ Register Admin
 export const register = expressAsyncHandler(async (req, res) => {
-  // Handle express-validator errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() });
   }
 
-  //  Extract fields from request body
-  const { username, email, password } = req.body;
+  const username = req.body.username?.trim();
+  const email = req.body.email?.toLowerCase().trim();
+  const password = req.body.password?.trim();
 
-  //  Check if admin with same email or username exists
-  const existingEmail = await Auth.findOne({ email });
-
-  if (existingEmail) {
-    return res.status(400).json({ message: "Admin already exists" });
+  if (!username || !email || !password) {
+    return res.status(400).json({ message: "All fields are required" });
   }
 
-  // Step 4: Hash the password
+  const existingUser = await Auth.findOne({ $or: [{ email }, { username }] }).lean();
+  if (existingUser) {
+    return res.status(409).json({ message: "Username or email already exists" });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Step 5: Create new admin
-  const newAdmin = await Auth.create({
-    username,
-    email,
-    password: hashedPassword,
-  });
+  const newAdmin = await Auth.create({ username, email, password: hashedPassword });
 
-  // Step 6: Respond with success or failure
-  if (newAdmin) {
-    return res.status(201).json({
-      message: "Admin registered successfully",
-      admin: {
-        id: newAdmin._id,
-        username: newAdmin.username,
-        email: newAdmin.email,
-      },
-    });
-  } else {
-    return res.status(500).json({ message: "Failed to register admin" });
-  }
+  res.status(201).json({
+    message: "Admin registered successfully",
+    admin: {
+      id: newAdmin._id,
+      username: newAdmin.username,
+      email: newAdmin.email,
+    },
+  });
 });
 
-// Login Admin
+// ✅ Login Admin
 export const login = expressAsyncHandler(async (req, res) => {
-  // Handle express-validator errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() });
   }
 
-  //  Extract login credentials from request
-  const { email, password } = req.body;
+  const email = req.body.email?.toLowerCase().trim();
+  const password = req.body.password?.trim();
 
-  //  Check if email exists
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
+  }
+
   const admin = await Auth.findOne({ email }).select("+password");
-
   if (!admin) {
-    return res
-      .status(404)
-      .json({ message: "Email not found, please register first" });
+    return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  // Ensure password is stored in DB
-  if (!admin.password) {
-    return res
-      .status(500)
-      .json({ message: "Admin account is missing a password" });
-  }
-
-  //  Compare entered password with hashed one
   const isMatch = await bcrypt.compare(password, admin.password);
-
   if (!isMatch) {
-    return res.status(400).json({ message: "Invalid credentials" });
+    return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  // Step 6: Generate JWT token
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET is not defined in environment");
+    return res.status(500).json({ message: "Internal server error" });
+  }
+
   const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
 
-  // Step 7: Respond with token and admin info
-  return res.status(200).json({
+  res.status(200).json({
     message: "Login successful",
     token,
     admin: {

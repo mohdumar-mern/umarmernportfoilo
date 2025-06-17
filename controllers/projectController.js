@@ -1,18 +1,16 @@
 import expressAsyncHandler from "express-async-handler";
 import Project from "../models/projectModel.js";
+import { getCache, setCache, delCache } from "../utils/cache.js";
+import { deleteFileFromCloudinary } from "../config/cloudinary.js";
 
 // @desc   Add a new project
 // @route  POST /api/projects
-// @access Public or Protected (depends on your auth setup)
+// @access Public or Protected
 export const addProject = expressAsyncHandler(async (req, res) => {
   const { title, description, techStack, liveDemo, githubLink } = req.body;
 
-  // Check for uploaded file
   if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      error: "No project image uploaded",
-    });
+    return res.status(400).json({ success: false, error: "No project image uploaded" });
   }
 
   const fileUrl = req.file.path || req.file.url;
@@ -24,86 +22,95 @@ export const addProject = expressAsyncHandler(async (req, res) => {
     techStack,
     liveDemo,
     githubLink,
-    file: {
-      public_id,
-      url: fileUrl,
-    },
+    file: { public_id, url: fileUrl },
   });
 
-  try {
-    const savedProject = await project.save();
-    res.status(201).json({ data: savedProject });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const savedProject = await project.save();
+  if (!savedProject) {
+    return res.status(500).json({ message: "Failed to save project" });
   }
+
+  await delCache("allProject*");
+  res.status(201).json({ data: savedProject });
 });
 
-// @desc   Get all projects
+// @desc   Get all projects (paginated with Redis cache)
 // @route  GET /api/projects
 // @access Public
 export const getProjects = expressAsyncHandler(async (req, res) => {
-  try {
-    const {page = 1, limit = 3} = req.query
-    // const projects = await Project.find();
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit)
-    }
-    const projects = await Project.paginate({}, options)
+  const { page = 1, limit = 9 } = req.query;
+  const cacheKey = `allProject_page${page}_limit${limit}`;
 
-    if (!projects || projects.length === 0) {
-      return res.status(404).json({ message: "No projects found" });
-    }
-
-    res.status(200).json({ data: projects.docs,
-      totalDocs: projects.totalDocs,
-      limit: projects.limit,
-      totalPages: projects.totalPages,
-      currentPage: projects.page,
-      pagingCounter: projects.pagingCounter,
-      hasPrevPage: projects.hasPrevPage,
-      hasNextPage: projects.hasNextPage,
-      prevPage: projects.prevPage,
-      nextPage: projects.nextPage
-     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    return res.status(200).json({ from: "cache", ...cached });
   }
-});
 
-// @desc   Get Single Project
-// @route  GET /api/projects/id
-// @access Public
-export const getProjectById = expressAsyncHandler(async (req, res) => {
-  const project = await Project.findById(req.params.id);
-  if (!project) {
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    lean: true,
+  };
+
+  const projects = await Project.paginate({}, options);
+
+  if (!projects || !projects.docs?.length) {
     return res.status(404).json({ message: "No projects found" });
   }
-  res.status(200).json({ data: project });
+
+  const response = {
+    data: projects.docs,
+    totalDocs: projects.totalDocs,
+    limit: projects.limit,
+    totalPages: projects.totalPages,
+    currentPage: projects.page,
+    pagingCounter: projects.pagingCounter,
+    hasPrevPage: projects.hasPrevPage,
+    hasNextPage: projects.hasNextPage,
+    prevPage: projects.prevPage,
+    nextPage: projects.nextPage,
+  };
+
+  await setCache(cacheKey, response, 300);
+  res.status(200).json({ from: "db", ...response });
+});
+
+// @desc   Get Single Project by ID
+// @route  GET /api/projects/:id
+// @access Public
+export const getProjectById = expressAsyncHandler(async (req, res) => {
+  const cacheKey = `project:${req.params.id}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.status(200).json({ from: "cache", data: cached });
+
+  const project = await Project.findById(req.params.id).lean();
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
+  await setCache(cacheKey, project, 300);
+  res.status(200).json({ from: "db", data: project });
 });
 
 // @desc   Update Single Project
-// @route  PUT /api/projects/id
+// @route  PUT /api/projects/:id
 // @access Public
 export const updateProject = expressAsyncHandler(async (req, res) => {
   const { title, description, techStack, liveDemo, githubLink } = req.body;
 
   const project = await Project.findById(req.params.id);
   if (!project) {
-    return res.status(404).json({ message: "No projects found" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
-  // Declare default values from existing project
   let fileUrl = project.file?.url || "";
   let public_id = project.file?.public_id || "";
 
-  // Check for uploaded file and overwrite if exists
   if (req.file) {
     fileUrl = req.file.path || req.file.url || fileUrl;
     public_id = req.file.public_id || req.file.filename || public_id;
   }
 
-  // Update Project
   const updatedProject = await Project.findByIdAndUpdate(
     req.params.id,
     {
@@ -112,31 +119,30 @@ export const updateProject = expressAsyncHandler(async (req, res) => {
       techStack: techStack || project.techStack,
       liveDemo: liveDemo || project.liveDemo,
       githubLink: githubLink || project.githubLink,
-      file: {
-        public_id,
-        url: fileUrl,
-      },
+      file: { public_id, url: fileUrl },
     },
     { new: true, runValidators: true }
-  );
+  ).lean();
 
   if (!updatedProject) {
-    return res.status(400).json({ message: "Failed to update Project..." });
+    return res.status(400).json({ message: "Failed to update project" });
   }
-  
-  return res.status(201).json({ data: updatedProject });
+
+  await delCache("allProject*");
+  await delCache(`project:${req.params.id}`);
+  res.status(200).json({ data: updatedProject });
 });
 
-
 // @desc   Delete Single Project
-// @route  DELETE /api/projects/id
+// @route  DELETE /api/projects/:id
 // @access Public
-
 export const deleteProject = expressAsyncHandler(async (req, res) => {
-  const project = await Project.findByIdAndDelete(req.params.id);
+  const project = await Project.findByIdAndDelete(req.params.id).lean();
   if (!project) {
-    return res.status(404).json({ message: "No projects found" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
+  await delCache("allProject*");
+  await delCache(`project:${req.params.id}`);
   res.status(200).json({ message: "Project deleted successfully" });
 });

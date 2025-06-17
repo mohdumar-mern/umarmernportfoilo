@@ -1,18 +1,35 @@
-import expres from "express";
+import express from "express";
+const router = express.Router();
 
-const router = expres.Router();
-
+// Controllers
 import {
   submitContactForm,
   getContacts,
   getContactById,
   deleteContact,
 } from "../controllers/contactController.js";
+
+// Validators
 import { contactFormValidator } from "../validator/contactValidator.js";
 
-router.post("/add",contactFormValidator, submitContactForm)
-router.get("/", getContacts)
-router.get("/:id/view", getContactById)
-router.delete("/:id", deleteContact)
+// @route   POST /api/contacts/add
+// @desc    Submit contact form
+// @access  Public
+router.post("/add", contactFormValidator, submitContactForm);
 
-export default router
+// @route   GET /api/contacts/
+// @desc    Get paginated contacts
+// @access  Admin/Private (optional: protect with middleware)
+router.get("/", getContacts);
+
+// @route   GET /api/contacts/:id/view
+// @desc    Get single contact by ID
+// @access  Admin/Private
+router.get("/:id/view", getContactById);
+
+// @route   DELETE /api/contacts/:id
+// @desc    Delete contact by ID
+// @access  Admin/Private
+router.delete("/:id", deleteContact);
+
+export default router;

@@ -1,11 +1,11 @@
 import express from "express";
 import cors from "cors";
-import bodyParser from "body-parser";
 
 import {
   errorHandling,
   pageNotFound,
 } from "./middlewares/errorHandlingMiddleware.js";
+import { logger } from "./middlewares/log.js";
 
 import authRoutes from "./routes/authroutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
@@ -18,16 +18,14 @@ const app = express();
 
 // Global Middlewares
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
+app.use(logger)
 
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
-
+app.get("/", (req, res) =>{
+  res.send("Hello Developer...")
+})
 
 // API Routes
 

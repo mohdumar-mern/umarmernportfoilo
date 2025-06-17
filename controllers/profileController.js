@@ -2,18 +2,16 @@ import expressAsyncHandler from "express-async-handler";
 import Profile from "../models/profileModel.js";
 import path from "path";
 import axios from "axios";
+import { setCache, getCache, delCache } from "../utils/cache.js";
+import { deleteFileFromCloudinary } from "../config/cloudinary.js";
 
-/**
- * @desc    Create a new profile
- * @route   POST /api/profile/add
- * @access  Private
- */
+
+// @desc Create Profile
+// @route POST /api/profile/add
+// @access Private
 export const addProfile = expressAsyncHandler(async (req, res) => {
   const { name, github, linkedin, twitter, instagram, youtube } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ message: "Name is required" });
-  }
+  if (!name) return res.status(400).json({ message: "Name is required" });
 
   const avatarFile = req.files?.avatar?.[0];
   const resumeFile = req.files?.resume?.[0];
@@ -39,41 +37,45 @@ export const addProfile = expressAsyncHandler(async (req, res) => {
     socialLinks: { github, linkedin, twitter, instagram, youtube },
   });
 
-  res.status(201).json({
-    message: "Profile created successfully",
-    data: newProfile,
-  });
+  await delCache("profile");
+  res.status(201).json({ message: "Profile created successfully", data: newProfile });
 });
 
-/**
- * @desc    Get profile
- * @route   GET /api/profile
- * @access  Public
- */
+// @desc Get Profile
+// @route GET /api/profile
+// @access Public
 export const getProfile = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne();
-  if (!profile) {
-    return res.status(404).json({ message: "Profile not found" });
-  }
-  res.status(200).json({ data: profile });
+  const cacheKey = "profile";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.status(200).json({ from: "cache", data: cached });
+
+  const profile = await Profile.findOne().lean();
+  if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+  await setCache(cacheKey, profile, 300);
+  res.status(200).json({ from: "db", data: profile });
 });
 
-/**
- * @desc    Update an existing profile
- * @route   PUT /api/profile/:id/edit
- * @access  Private
- */
+// @desc Update Profile
+// @route PUT /api/profile/:id/edit
+// @access Private
 export const updateProfile = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, github, linkedin, twitter, instagram, youtube } = req.body;
 
   const profile = await Profile.findById(id);
-  if (!profile) {
-    return res.status(404).json({ message: "Profile not found" });
-  }
+  if (!profile) return res.status(404).json({ message: "Profile not found" });
 
   const avatarFile = req.files?.avatar?.[0];
   const resumeFile = req.files?.resume?.[0];
+
+  // Cloudinary cleanup
+  if (avatarFile && profile.avatar?.public_id) {
+    await deleteFileFromCloudinary(profile.avatar.public_id);
+  }
+  if (resumeFile && profile.resume?.public_id) {
+    await deleteFileFromCloudinary(profile.resume.public_id);
+  }
 
   const updatedAvatar = avatarFile
     ? {
@@ -104,65 +106,84 @@ export const updateProfile = expressAsyncHandler(async (req, res) => {
       },
     },
     { new: true, runValidators: true }
-  );
+  ).lean();
 
-  res.status(200).json({
-    message: "Profile updated successfully",
-    data: updatedProfile,
-  });
+  await delCache("profile");
+  res.status(200).json({ message: "Profile updated successfully", data: updatedProfile });
 });
 
-/**
- * @desc    Get Avatar
- * @route   GET /api/profile/avatar
- * @access  Public
- */
+// @desc Get Avatar
+// @route GET /api/profile/avatar
+// @access Public
 export const getAvatar = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne();
-  if (!profile || !profile.avatar?.url) {
-    return res.status(404).json({ message: "Avatar not found" });
-  }
-  res.status(200).json({ avatar: profile.avatar.url });
+  const cacheKey = "avatar";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.status(200).json({ from: "cache", avatar: cached });
+
+  const profile = await Profile.findOne().lean();
+  if (!profile?.avatar?.url) return res.status(404).json({ message: "Avatar not found" });
+
+  const avatar = profile.avatar.url;
+  await setCache(cacheKey, avatar, 300);
+  res.status(200).json({ from: "db", avatar });
 });
 
-/**
- * @desc    Get Resume
- * @route   GET /api/profile/resume
- * @access  Public
- */
+// @desc Get Resume
+// @route GET /api/profile/resume
+// @access Public
 export const getResume = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne();
-  if (!profile || !profile.resume?.url) {
+  const cacheKey = "resume";
+  const cached = await getCache(cacheKey);
+
+  if (cached) {
+    const fileName = path.basename(new URL(cached).pathname) || "resume.pdf";
+
+    // Redownload from cached URL
+    try {
+      const fileResponse = await axios.get(cached, { responseType: "stream" });
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.setHeader("Content-Type", "application/pdf");
+      return fileResponse.data.pipe(res);
+    } catch (err) {
+      console.warn("⚠️ Cached resume URL failed, falling back to DB...");
+      await delCache(cacheKey); // invalidate broken cache
+    }
+  }
+
+  const profile = await Profile.findOne().lean();
+  if (!profile?.resume?.url) {
     return res.status(404).json({ message: "Resume not found" });
   }
 
-  // res.status(200).json({resume: profile.resume?.url});
   const fileUrl = profile.resume.url;
-
-  // Derive a clean filename (remove query params, fallback to default)
   const fileName = path.basename(new URL(fileUrl).pathname) || "resume.pdf";
 
-  // Download the file as a stream
-  const fileResponse = await axios.get(fileUrl, { responseType: "stream" });
+  try {
+    const fileResponse = await axios.get(fileUrl, { responseType: "stream" });
 
-   // Set headers for file download
-   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-   res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Type", "application/pdf");
 
-   // Stream file to client
-   fileResponse.data.pipe(res);
-  
+    await setCache(cacheKey, fileUrl, 300);
+    return fileResponse.data.pipe(res);
+  } catch (err) {
+    console.error("❌ Failed to stream resume file:", err.message);
+    return res.status(500).json({ message: "Failed to download resume file." });
+  }
 });
 
-/**
- * @desc    Get Social Links
- * @route   GET /api/profile/social-links
- * @access  Public
- */
+
+// @desc Get Social Links
+// @route GET /api/profile/social-links
+// @access Public
 export const getSocialLinks = expressAsyncHandler(async (req, res) => {
-  const profile = await Profile.findOne();
-  if (!profile || !profile.socialLinks) {
-    return res.status(404).json({ message: "Social Links not found" });
-  }
-  res.status(200).json({ socialLinks: profile.socialLinks });
+  const cacheKey = "socialLinks";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.status(200).json({ from: "cache", socialLinks: cached });
+
+  const profile = await Profile.findOne().lean();
+  if (!profile?.socialLinks) return res.status(404).json({ message: "Social Links not found" });
+
+  await setCache(cacheKey, profile.socialLinks, 300);
+  res.status(200).json({ from: "db", socialLinks: profile.socialLinks });
 });
