@@ -12,24 +12,103 @@ import {
 // Validators
 import { contactFormValidator } from "../validator/contactValidator.js";
 
-// @route   POST /api/contacts/add
-// @desc    Submit contact form
-// @access  Public
+/**
+ * @swagger
+ * tags:
+ *   name: Contacts
+ *   description: Contact message handling
+ */
+
+/**
+ * @swagger
+ * /api/contacts/add:
+ *   post:
+ *     summary: Submit a contact form
+ *     tags: [Contacts]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - message
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Message saved successfully
+ */
 router.post("/add", contactFormValidator, submitContactForm);
 
-// @route   GET /api/contacts/
-// @desc    Get paginated contacts
-// @access  Admin/Private (optional: protect with middleware)
+/**
+ * @swagger
+ * /api/contacts:
+ *   get:
+ *     summary: Get all contact messages (paginated)
+ *     tags: [Contacts]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: Contact messages retrieved
+ */
 router.get("/", getContacts);
 
-// @route   GET /api/contacts/:id/view
-// @desc    Get single contact by ID
-// @access  Admin/Private
+/**
+ * @swagger
+ * /api/contacts/{id}/view:
+ *   get:
+ *     summary: Get a single contact message by ID
+ *     tags: [Contacts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Contact ID
+ *     responses:
+ *       200:
+ *         description: Single contact message
+ */
 router.get("/:id/view", getContactById);
 
-// @route   DELETE /api/contacts/:id
-// @desc    Delete contact by ID
-// @access  Admin/Private
+/**
+ * @swagger
+ * /api/contacts/{id}:
+ *   delete:
+ *     summary: Delete a contact message by ID
+ *     tags: [Contacts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Contact ID
+ *     responses:
+ *       200:
+ *         description: Contact deleted
+ */
 router.delete("/:id", deleteContact);
 
 export default router;
