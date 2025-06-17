@@ -23,3 +23,6 @@ public/uploads/
 # Build outputs (if using any)
 dist/
 build/
+
+Dockerfile
+.dockerignore
