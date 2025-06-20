@@ -156,20 +156,16 @@ export const getResume = expressAsyncHandler(async (req, res) => {
   }
 
   const fileUrl = profile.resume.url;
-  const fileName = path.basename(new URL(fileUrl).pathname) || "resume.pdf";
+  const fileResponse = await axios.get(fileUrl, { responseType: "stream" });
+  
 
-  try {
-    const fileResponse = await axios.get(fileUrl, { responseType: "stream" });
+  res.set({
+    'Content-Disposition': 'attachment; filename="resume.pdf"',
+    'Content-Type': 'application/pdf',
+  });
 
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("Content-Type", "application/pdf");
-
-    await setCache(cacheKey, fileUrl, 300);
+  await setCache(cacheKey, fileUrl, 300);
     return fileResponse.data.pipe(res);
-  } catch (err) {
-    console.error("❌ Failed to stream resume file:", err.message);
-    return res.status(500).json({ message: "Failed to download resume file." });
-  }
 });
 
 

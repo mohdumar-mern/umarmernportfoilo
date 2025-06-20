@@ -8,26 +8,20 @@ const ALLOWED_FORMATS = ["jpg", "jpeg", "png", "pdf", "docx"];
 // Configure Cloudinary storage
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: (req, file) => {
-    const originalName = file.originalname
-      .split(".")[0]
-      .trim()
-      .replace(/\s+/g, "_");
-    const fileExtension = file.originalname.split(".").pop().toLowerCase();
-    const isDocument = ["pdf", "docx"].includes(fileExtension);
+  params: async (req, file) => {
+    const isPDF = file.mimetype === 'application/pdf';
+    const folder = isPDF ? 'pdfs' : 'images';
+    const resourceType = isPDF ? 'raw' : 'image'; // ✅ force PDF as raw
+    const originalName = file.originalname.split('.')[0].replace(/\s+/g, "_");
 
     return {
-      folder: "umar-portfolio/uploads",
-      public_id: `${Date.now()}-${originalName}`, // Cleaned name with timestamp
-      resource_type: isDocument ? "raw" : "image", // raw for non-images
-      type: "upload",
-      // Don't specify format, Cloudinary auto-detects it
-      transformation: !isDocument
-        ? [{ width: 1000, height: 1000, crop: "limit" }]
-        : undefined,
+      folder: `portfolio/${folder}`,
+      resource_type: resourceType,
+      public_id: `${Date.now()}-${originalName}`,
     };
   },
 });
+
 
 // Setup multer middleware
 const upload = multer({
