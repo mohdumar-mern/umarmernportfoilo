@@ -20,6 +20,7 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import skillRoutes from "./routes/skillRoutes.js"
 import profileRoutes from './routes/profileRoutes.js'
 import swaggerSpec from "./utils/swaggerSpec.js";
+// import pingRoutes from "./routes/pingRoutes.js";
 
 const app = express();
 

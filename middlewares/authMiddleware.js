@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-import Auth from "../models/authModel.js";
+import Admin from "../models/authModel.js";
 import expressAsyncHandler from "express-async-handler";
 
 export const protect = expressAsyncHandler(async (req, res, next) => {
@@ -18,7 +18,7 @@ export const protect = expressAsyncHandler(async (req, res, next) => {
     if (!decoded?.id) {
       return res.status(401).json({ message: "Invalid token" });
     }
-    const admin = await Auth.findById(decoded.id).select("-password");
+    const admin = await Admin.findById(decoded.id).select("-password");
 
     if (!admin) {
       return res.status(401).json({ message: "Admin not found" });
