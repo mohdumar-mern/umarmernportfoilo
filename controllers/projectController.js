@@ -7,14 +7,8 @@ import { deleteFileFromCloudinary } from "../config/cloudinary.js";
 // @route  POST /api/projects
 // @access Public or Protected
 export const addProject = expressAsyncHandler(async (req, res) => {
-  const { title, description, techStack, liveDemo, githubLink } = req.body;
-
-  if (!req.file) {
-    return res.status(400).json({ success: false, error: "No project image uploaded" });
-  }
-
-  const fileUrl = req.file.path || req.file.url;
-  const public_id = req.file.public_id || req.file.filename || null;
+  const { title, description, techStack, liveDemo, githubLink, imageUrl } = req.body;
+  console.log("Body data",req.body)
 
   const project = new Project({
     title,
@@ -22,7 +16,7 @@ export const addProject = expressAsyncHandler(async (req, res) => {
     techStack,
     liveDemo,
     githubLink,
-    file: { public_id, url: fileUrl },
+    imageUrl,
   });
 
   const savedProject = await project.save();
@@ -30,7 +24,6 @@ export const addProject = expressAsyncHandler(async (req, res) => {
     return res.status(500).json({ message: "Failed to save project" });
   }
 
-  await delCache("allProject*");
   res.status(201).json({ data: savedProject });
 });
 
@@ -49,6 +42,7 @@ export const getProjects = expressAsyncHandler(async (req, res) => {
   const options = {
     page: parseInt(page),
     limit: parseInt(limit),
+    sort: { createdAt: -1 }, // 🔥 Sort by latest first
     lean: true,
   };
 
@@ -96,21 +90,14 @@ export const getProjectById = expressAsyncHandler(async (req, res) => {
 // @route  PUT /api/projects/:id
 // @access Public
 export const updateProject = expressAsyncHandler(async (req, res) => {
-  const { title, description, techStack, liveDemo, githubLink } = req.body;
+  const { title, description, techStack, liveDemo, githubLink, imageUrl } = req.body;
 
   const project = await Project.findById(req.params.id);
   if (!project) {
     return res.status(404).json({ message: "Project not found" });
   }
 
-  let fileUrl = project.file?.url || "";
-  let public_id = project.file?.public_id || "";
-
-  if (req.file) {
-    fileUrl = req.file.path || req.file.url || fileUrl;
-    public_id = req.file.public_id || req.file.filename || public_id;
-  }
-
+ 
   const updatedProject = await Project.findByIdAndUpdate(
     req.params.id,
     {
@@ -119,7 +106,7 @@ export const updateProject = expressAsyncHandler(async (req, res) => {
       techStack: techStack || project.techStack,
       liveDemo: liveDemo || project.liveDemo,
       githubLink: githubLink || project.githubLink,
-      file: { public_id, url: fileUrl },
+      imageUrl: imageUrl || project.imageUrl,
     },
     { new: true, runValidators: true }
   ).lean();

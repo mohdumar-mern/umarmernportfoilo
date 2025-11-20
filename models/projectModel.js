@@ -36,10 +36,17 @@ const projectSchema = new mongoose.Schema({
       message: 'Live demo must be a valid URL (if provided)',
     },
   },
-  file: {
-    url: String,
-    public_id: String,
+  imageUrl: {
+    type: String,
+    validate: {
+      validator: (v) => !v || /^https?:\/\/.+/.test(v),
+      message: 'Image url is invalid (if provided)',
+    },
   },
+  // file: {
+  //   url: String,
+  //   public_id: String,
+  // },
 }, { timestamps: true });
 
 projectSchema.plugin(mongoosePaginate)
